@@ -1,6 +1,7 @@
 <script>
 	const { read, utils } = globalThis.XLSX;
 	const routes = ["เงินในงบฯ"];
+	const budgetTypes = { 0: "กลาง", 1: "สรก.", 6: "เงินประกัน" };
 
 	function formatDate(value, option) {
 		return new Date(value).toLocaleDateString("th", {
@@ -29,38 +30,36 @@
 
 	let report = $derived.by(() => {
 		let detail = {};
+		let corts = {};
 		let allowed = [];
 		let rowindex = 0;
 		for (const cells of journal.slice(1)) {
-			const [, accountName, desc] = cells[1].split("\n");
-			const [docNo] = cells[2].split("\n");
 			let [docDate, accountCode, sourceFund] = cells[4].split("\n");
-			const [docType] = cells[5].split("\n");
-			const [refNo] = cells[6].split("\n");
-			const [, account] = cells[7].split("\n");
-			const [, debit] = cells[11].split("\n");
-			const [, credit] = cells[12].split("\n");
-			const [day, indexmonth, year] = docDate.split(".");
-			docDate = new Date(year - 543, indexmonth, day);
 			if (!isNaN(accountCode)) {
-				if (["K0", "KA", "KC", "KL"].includes(docType)) {
+				const [, accountName, desc] = cells[1].split("\n");
+				const [docNo] = cells[2].split("\n");
+				const [docType] = cells[5].split("\n");
+				const [refNo] = cells[6].split("\n");
+				const [, account] = cells[7].split("\n");
+				const [, debit] = cells[11].split("\n");
+				const [, credit] = cells[12].split("\n");
+				const [day, indexmonth, year] = docDate.split(".");
+				docDate = new Date(year - 543, indexmonth, day);
+				const isReceiving = ["K0", "KA", "KC", "KL"].includes(docType);
+				const isPaying = ["PM"].includes(docType);
+				const cort = refNo.slice(-3) + "/" + refNo.slice(1, 3);
+				const referral = refNo.slice(-10);
+				if (isReceiving) {
 					detail[docNo] = desc;
+					corts[docNo] = cort;
+				}
+				if (isPaying || isReceiving) {
 					allowed.push({
 						docDate,
-						docNo,
-						refNo,
-						sourceFund,
-						desc,
-						debit,
-						credit,
-					});
-				} else if (docType == "PM") {
-					allowed.push({
-						docDate,
-						docNo,
-						refNo,
-						sourceFund,
-						desc: desc || detail[docNo],
+						docNo: isPaying ? referral : docNo,
+						cort: isNaN(refNo) ? cort : corts[referral],
+						budgetType: budgetTypes[sourceFund.slice(3, 4)],
+						desc: isReceiving ? desc : detail[referral],
 						debit,
 						credit,
 					});
@@ -83,7 +82,15 @@
 				accept="xlsx"
 				onchange={(e) => {
 					upload(e, (aoa) => {
-						journal = aoa;
+						clear()
+						journal = [
+							aoa[0],
+							...aoa.slice(1).sort((a,b) => {
+								[, , a] = a[1].split("\n");
+								[, , b] = b[1].split("\n");
+								return b - a
+							})
+						]
 					});
 				}}
 			/>
@@ -132,12 +139,12 @@
 				<tr>
 					<td class="border">วันที่</td>
 					<td class="border">เลขที่ฎีกา</td>
-					<td class="border">ประเภทจ่าย</td>
+					<!-- <td class="border">ประเภทจ่าย</td> -->
 					<td class="border">งบ</td>
 					<td class="border">รายการ</td>
 					<td class="border">เดบิต</td>
 					<td class="border">เครดิต</td>
-					<td class="border">ยอดคงเหลือ</td>
+					<!-- <td class="border">ยอดคงเหลือ</td> -->
 					<td class="print:hidden">เลขที่เอกสาร GF</td>
 				</tr>
 			</thead>
@@ -148,12 +155,12 @@
 							>{formatDate(obj.docDate, { year: undefined })}</td
 						>
 						<td class="border-x" style="border-bottom: 1px dotted;"
-							>{obj.refNo}</td
+							>{obj.cort}</td
 						>
-						<td class="border-x" style="border-bottom: 1px dotted;"></td>
-						<td class="border-x" style="border-bottom: 1px dotted;"
-							>{obj.sourceFund}</td
-						>
+						<!-- <td class="border-x" style="border-bottom: 1px dotted;"></td> -->
+						<td class="border-x" style="border-bottom: 1px dotted;">
+							{obj.budgetType}
+						</td>
 						<td class="border-x" style="border-bottom: 1px dotted;"
 							>{obj.desc}</td
 						>
@@ -163,7 +170,7 @@
 						<td class="border-x text-right" style="border-bottom: 1px dotted;"
 							>{obj.credit}</td
 						>
-						<td class="border-x" style="border-bottom: 1px dotted;"></td>
+						<!-- <td class="border-x" style="border-bottom: 1px dotted;"></td> -->
 						<td class="print:hidden">{obj.docNo}</td>
 					</tr>
 				{/each}
