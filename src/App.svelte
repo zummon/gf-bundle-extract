@@ -3,6 +3,13 @@
 	const routes = ["เงินในงบฯ"];
 	const budgetTypes = { 0: "กลาง", 1: "สรก.", 6: "เงินประกัน" };
 
+	function formatMoney(value, option) {
+		return Number(value).toLocaleString(undefined, {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+			...option,
+		});
+	}
 	function formatDate(value, option) {
 		return new Date(value).toLocaleDateString("th", {
 			day: "numeric",
@@ -28,19 +35,19 @@
 	let journal = $state([]);
 	let route = $state(routes[0]);
 
-	let report = $derived.by(() => {
+	let allowed = $derived.by(() => {
 		let detail = {};
 		let corts = {};
-		let allowed = [];
+		let byDate = {};
 		let rowindex = 0;
 		for (const cells of journal.slice(1)) {
-			let [docDate, accountCode, sourceFund] = cells[4].split("\n");
-			if (!isNaN(accountCode)) {
+			const [, account] = cells[7].split("\n");
+			if (!account) {
 				const [, accountName, desc] = cells[1].split("\n");
 				const [docNo] = cells[2].split("\n");
+				let [docDate, accountCode, sourceFund] = cells[4].split("\n");
 				const [docType] = cells[5].split("\n");
 				const [refNo] = cells[6].split("\n");
-				const [, account] = cells[7].split("\n");
 				const [, debit] = cells[11].split("\n");
 				const [, credit] = cells[12].split("\n");
 				const [day, indexmonth, year] = docDate.split(".");
@@ -54,25 +61,30 @@
 					corts[docNo] = cort;
 				}
 				if (isPaying || isReceiving) {
-					allowed.push({
-						docDate,
-						docNo: isPaying ? referral : docNo,
+					if (!byDate[docDate]) {
+						byDate[docDate] = [];
+					}
+					byDate[docDate].push({
 						cort: isNaN(refNo) ? cort : corts[referral],
 						budgetType: budgetTypes[sourceFund.slice(3, 4)],
 						desc: isReceiving ? desc : detail[referral],
 						debit,
 						credit,
+						docNo: isPaying ? referral : docNo,
+						payRef: isPaying ? docNo : "",
+						accountName,
+						accountCode,
 					});
 				}
 			}
 
 			rowindex += 1;
 		}
-		return { allowed };
+		return { byDate };
 	});
 </script>
 
-<div class="p-4 flex flex-wrap gap-4 print:hidden">
+<div class="p-4 flex flex-wrap gap-4 print:hidden select-none">
 	<div class="">
 		<label>
 			NGL_RPT001 รายงานสมุดรายวันทั่วไป
@@ -82,15 +94,19 @@
 				accept="xlsx"
 				onchange={(e) => {
 					upload(e, (aoa) => {
-						clear()
+						clear();
 						journal = [
 							aoa[0],
-							...aoa.slice(1).sort((a,b) => {
+							...aoa.slice(1).sort((a, b) => {
+								// let [docDate] = cells[4].split("\n");
+								// const [day, indexmonth, year] = docDate.split(".");
+								// docDate = new Date(year - 543, indexmonth, day);
+
 								[, , a] = a[1].split("\n");
 								[, , b] = b[1].split("\n");
-								return b - a
-							})
-						]
+								return b - a;
+							}),
+						];
 					});
 				}}
 			/>
@@ -128,50 +144,110 @@
 	</div>
 </div>
 
-<div class="px-4 flex flex-wrap gap-4 print:hidden">
+<div class="px-4 flex flex-wrap gap-4 print:hidden select-none">
 	<div class="">...</div>
 </div>
 
-<div class="p-4 print:p-0">
+<div class="p-4 print:p-0 text-sm">
 	{#if route == routes[0]}
 		<table class="overflow-auto w-full">
 			<thead class="text-center">
 				<tr>
 					<td class="border">วันที่</td>
 					<td class="border">เลขที่ฎีกา</td>
-					<!-- <td class="border">ประเภทจ่าย</td> -->
+					<td class="border">ประเภทจ่าย</td>
 					<td class="border">งบ</td>
 					<td class="border">รายการ</td>
 					<td class="border">เดบิต</td>
 					<td class="border">เครดิต</td>
-					<!-- <td class="border">ยอดคงเหลือ</td> -->
+					<td class="border">ยอดคงเหลือ</td>
+					<td class="print:hidden">รหัสบัญชี</td>
+					<td class="print:hidden">ชื่อบัญชี</td>
 					<td class="print:hidden">เลขที่เอกสาร GF</td>
+					<td class="print:hidden">เลขที่เอกสารจ่าย GF</td>
 				</tr>
 			</thead>
 			<tbody>
-				{#each report.allowed as obj}
+				<tr class="">
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;">
+						ยอดยกมา
+					</td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					></td>
+				</tr>
+				{#each Object.entries(allowed.byDate) as [date, arr]}
+					{@const formatedDate = formatDate(date, { year: undefined })}
+					{#each arr as obj, index}
+						<tr class="">
+							<td
+								class="border-x text-center text-nowrap"
+								style="border-bottom: 1px dotted;"
+							>
+								{index == 0 ? formatedDate : ""}
+							</td>
+							<td
+								class="border-x text-center"
+								style="border-bottom: 1px dotted;"
+							>
+								{obj.cort}
+							</td>
+							<td
+								class="border-x text-center"
+								style="border-bottom: 1px dotted;"
+							></td>
+							<td
+								class="border-x text-center"
+								style="border-bottom: 1px dotted;"
+							>
+								{obj.budgetType}
+							</td>
+							<td class="border-x" style="border-bottom: 1px dotted;">
+								{obj.desc}
+							</td>
+							<td
+								class="border-x text-right"
+								style="border-bottom: 1px dotted;"
+							>
+								{obj.debit}
+							</td>
+							<td
+								class="border-x text-right"
+								style="border-bottom: 1px dotted;"
+							>
+								{obj.credit}
+							</td>
+							<td class="border-x" style="border-bottom: 1px dotted;"></td>
+							<td class="print:hidden">{obj.accountCode}</td>
+							<td class="print:hidden">{obj.accountName}</td>
+							<td class="print:hidden">{obj.docNo}</td>
+							<td class="print:hidden">{obj.payRef}</td>
+						</tr>
+					{/each}
 					<tr class="">
-						<td class="border-x text-nowrap" style="border-bottom: 1px dotted;"
-							>{formatDate(obj.docDate, { year: undefined })}</td
-						>
-						<td class="border-x" style="border-bottom: 1px dotted;"
-							>{obj.cort}</td
-						>
-						<!-- <td class="border-x" style="border-bottom: 1px dotted;"></td> -->
-						<td class="border-x" style="border-bottom: 1px dotted;">
-							{obj.budgetType}
-						</td>
-						<td class="border-x" style="border-bottom: 1px dotted;"
-							>{obj.desc}</td
-						>
-						<td class="border-x text-right" style="border-bottom: 1px dotted;"
-							>{obj.debit}</td
-						>
-						<td class="border-x text-right" style="border-bottom: 1px dotted;"
-							>{obj.credit}</td
-						>
-						<!-- <td class="border-x" style="border-bottom: 1px dotted;"></td> -->
-						<td class="print:hidden">{obj.docNo}</td>
+						<td class="border">{formatedDate}</td>
+						<td class="border"></td>
+						<td class="border"></td>
+						<td class="border"></td>
+						<td class="border"></td>
+						<td class="border text-right">{formatMoney(0)}</td>
+						<td class="border text-right">{formatMoney(0)}</td>
+						<td class="border"></td>
+						<td class="print:hidden"></td>
+						<td class="print:hidden"></td>
+						<td class="print:hidden"></td>
+						<td class="print:hidden"></td>
 					</tr>
 				{/each}
 			</tbody>
@@ -182,9 +258,12 @@
 					<td class="border"></td>
 					<td class="border"></td>
 					<td class="border"></td>
+					<td class="border text-right">{formatMoney(0)}</td>
+					<td class="border text-right">{formatMoney(0)}</td>
 					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 				</tr>
 			</tfoot>
