@@ -1,14 +1,20 @@
 <script>
 	const { read, utils } = globalThis.XLSX;
-	const routes = ["เงินในงบฯ"];
+	const routes = [
+		{ value: "เงินในงบฯ", callback() {} },
+		{ value: "อื่นๆ", callback() {} },
+	];
 	const budgetTypes = { 0: "กลาง", 1: "สรก.", 6: "เงินประกัน" };
 
 	function formatMoney(value, option) {
-		return Number(value).toLocaleString(undefined, {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-			...option,
-		});
+		value = Number(value);
+		return value == 0
+			? ""
+			: value.toLocaleString('th', {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2,
+					...option,
+				});
 	}
 	function formatDate(value, option) {
 		return new Date(value).toLocaleDateString("th", {
@@ -33,7 +39,9 @@
 	}
 
 	let journal = $state([]);
-	let route = $state(routes[0]);
+	let route = $state(routes[0].value);
+	let pickDocTypes = $state([]);
+	let docTypes = $state([]);
 
 	let allowed = $derived.by(() => {
 		let detail = {};
@@ -48,11 +56,13 @@
 				let [docDate, accountCode, sourceFund] = cells[4].split("\n");
 				const [docType] = cells[5].split("\n");
 				const [refNo] = cells[6].split("\n");
-				const [, debit] = cells[11].split("\n");
-				const [, credit] = cells[12].split("\n");
-				const [day, indexmonth, year] = docDate.split(".");
-				docDate = new Date(year - 543, indexmonth, day);
-				const isReceiving = ["K0", "KA", "KC", "KL"].includes(docType);
+				let [, debit] = cells[11].split("\n");
+				let [, credit] = cells[12].split("\n");
+				const [day, month, year] = docDate.split(".");
+				docDate = new Date(year - 543, month - 1, day);
+				debit = Number(debit.replace(/[^0-9.-]+/g, ""));
+				credit = Number(credit.replace(/[^0-9.-]+/g, ""));
+				const isReceiving = ["K0", "KA", "KC", "KL", "KZ"].includes(docType);
 				const isPaying = ["PM"].includes(docType);
 				const cort = refNo.slice(-3) + "/" + refNo.slice(1, 3);
 				const referral = refNo.slice(-10);
@@ -90,23 +100,12 @@
 			NGL_RPT001 รายงานสมุดรายวันทั่วไป
 			<input
 				type="file"
-				class="cursor-pointer"
+				class="cursor-pointer text-cyan-500"
 				accept="xlsx"
 				onchange={(e) => {
 					upload(e, (aoa) => {
 						clear();
-						journal = [
-							aoa[0],
-							...aoa.slice(1).sort((a, b) => {
-								// let [docDate] = cells[4].split("\n");
-								// const [day, indexmonth, year] = docDate.split(".");
-								// docDate = new Date(year - 543, indexmonth, day);
-
-								[, , a] = a[1].split("\n");
-								[, , b] = b[1].split("\n");
-								return b - a;
-							}),
-						];
+						journal = aoa;
 					});
 				}}
 			/>
@@ -122,7 +121,7 @@
 			}}>Clear</button
 		>
 	</div>
-	{#each routes as value}
+	{#each routes as { value, callback }}
 		<div class="">
 			<button
 				class="cursor-pointer {route == value
@@ -130,6 +129,7 @@
 					: 'bg-cyan-500'} font-semibold text-white rounded px-1"
 				onclick={() => {
 					route = value;
+					callback();
 				}}>{value}</button
 			>
 		</div>
@@ -139,19 +139,28 @@
 			class="cursor-pointer bg-cyan-500 font-semibold text-white rounded px-1"
 			onclick={() => {
 				print();
-			}}>Print</button
+			}}>+Print</button
 		>
 	</div>
 </div>
 
 <div class="px-4 flex flex-wrap gap-4 print:hidden select-none">
-	<div class="">...</div>
+	<div class=""></div>
 </div>
 
 <div class="p-4 print:p-0 text-sm">
-	{#if route == routes[0]}
+	{#if route == routes[0].value}
 		<table class="overflow-auto w-full">
 			<thead class="text-center">
+				<tr>
+					<td class="" colspan="8"
+						>บัญชีธนาคาร เงินงบประมาณ ประจำเดือน {""} ปีงบประมาณ {""}</td
+					>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+				</tr>
 				<tr>
 					<td class="border">วันที่</td>
 					<td class="border">เลขที่ฎีกา</td>
@@ -180,22 +189,37 @@
 					<td class="border-x text-center" style="border-bottom: 1px dotted;">
 						ยอดยกมา
 					</td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					<td class="border-x text-right" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					<td class="border-x text-right" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
-					></td>
+					<td class="border-x text-right" style="border-bottom: 1px dotted;">
+						{formatMoney(0)}
+					</td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
 				</tr>
 				{#each Object.entries(allowed.byDate) as [date, arr]}
-					{@const formatedDate = formatDate(date, { year: undefined })}
+					{@const formatedDate = formatDate(date)}
+					{@const { debit, credit } = arr.reduce(
+						(prev, curr) => {
+							prev.debit += curr.debit;
+							prev.credit += curr.credit;
+							return prev;
+						},
+						{ debit: 0, credit: 0 },
+					)}
 					{#each arr as obj, index}
 						<tr class="">
 							<td
-								class="border-x text-center text-nowrap"
-								style="border-bottom: 1px dotted;"
+								class="border-x text-center text-nowrap border-black {index == 0
+									? ''
+									: 'text-white'}"
+								style="border-bottom: 1px dotted var(--color-black);"
 							>
-								{index == 0 ? formatedDate : ""}
+								{formatedDate}
 							</td>
 							<td
 								class="border-x text-center"
@@ -220,15 +244,16 @@
 								class="border-x text-right"
 								style="border-bottom: 1px dotted;"
 							>
-								{obj.debit}
+								{formatMoney(obj.debit)}
 							</td>
 							<td
 								class="border-x text-right"
 								style="border-bottom: 1px dotted;"
 							>
-								{obj.credit}
+								{formatMoney(obj.credit)}
 							</td>
-							<td class="border-x" style="border-bottom: 1px dotted;"></td>
+							<td class="border-x text-right" style="border-bottom: 1px dotted;"
+							></td>
 							<td class="print:hidden">{obj.accountCode}</td>
 							<td class="print:hidden">{obj.accountName}</td>
 							<td class="print:hidden">{obj.docNo}</td>
@@ -241,8 +266,8 @@
 						<td class="border"></td>
 						<td class="border"></td>
 						<td class="border"></td>
-						<td class="border text-right">{formatMoney(0)}</td>
-						<td class="border text-right">{formatMoney(0)}</td>
+						<td class="border text-right">{formatMoney(debit)}</td>
+						<td class="border text-right">{formatMoney(credit)}</td>
 						<td class="border"></td>
 						<td class="print:hidden"></td>
 						<td class="print:hidden"></td>
@@ -250,14 +275,12 @@
 						<td class="print:hidden"></td>
 					</tr>
 				{/each}
-			</tbody>
-			<tfoot>
 				<tr class="">
 					<td class="border"></td>
 					<td class="border"></td>
 					<td class="border"></td>
 					<td class="border"></td>
-					<td class="border"></td>
+					<td class="border text-center">รวมทั้งเดือน</td>
 					<td class="border text-right">{formatMoney(0)}</td>
 					<td class="border text-right">{formatMoney(0)}</td>
 					<td class="border"></td>
@@ -266,7 +289,21 @@
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 				</tr>
-			</tfoot>
+				<tr class="">
+					<td class="border"></td>
+					<td class="border"></td>
+					<td class="border"></td>
+					<td class="border"></td>
+					<td class="border text-center">รวมตั้งแต่ต้นปี</td>
+					<td class="border text-right">{formatMoney(0)}</td>
+					<td class="border text-right">{formatMoney(0)}</td>
+					<td class="border"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
+				</tr>
+			</tbody>
 		</table>
 	{/if}
 </div>
