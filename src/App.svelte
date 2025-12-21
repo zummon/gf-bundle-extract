@@ -6,11 +6,15 @@
 	];
 	const budgetTypes = { 0: "กลาง", 1: "สรก.", 6: "เงินประกัน" };
 
+	function eoMonth(startDate, months) {
+		const d = new Date(startDate);
+		return new Date(d.getFullYear(), d.getMonth() + months + 1, 0);
+	}
 	function formatMoney(value, option) {
 		value = Number(value);
 		return value == 0
 			? ""
-			: value.toLocaleString('th', {
+			: value.toLocaleString("th", {
 					minimumFractionDigits: 2,
 					maximumFractionDigits: 2,
 					...option,
@@ -37,6 +41,40 @@
 	function clear() {
 		journal = [];
 	}
+	function restructJournal(aoa) {
+		let journal = [];
+		for (const cells of aoa) {
+			const [, account] = cells[7].split("\n");
+
+			if (!account) {
+				const [, accountName, desc] = cells[1].split("\n");
+				const [docNo] = cells[2].split("\n");
+				const [docDate, accountCode, sourceFund] = cells[4].split("\n");
+				const [docType] = cells[5].split("\n");
+				const [refNo] = cells[6].split("\n");
+				const [, debit] = cells[11].split("\n");
+				const [, credit] = cells[12].split("\n");
+				const [day, month, year] = docDate.split(".");
+				journal.push([
+					,
+					accountName,
+					desc,
+					docNo,
+					new Date(year - 543, month - 1, day),
+					accountCode,
+					sourceFund,
+					docType,
+					refNo,
+					account,
+					,
+					Number(debit.replace(/[^0-9.-]+/g, "")),
+					,
+					Number(credit.replace(/[^0-9.-]+/g, "")),
+				]);
+			}
+		}
+		return journal;
+	}
 
 	let journal = $state([]);
 	let route = $state(routes[0].value);
@@ -49,19 +87,23 @@
 		let byDate = {};
 		let rowindex = 0;
 		for (const cells of journal.slice(1)) {
-			const [, account] = cells[7].split("\n");
+			const [
+				,
+				accountName,
+				desc,
+				docNo,
+				docDate,
+				accountCode,
+				sourceFund,
+				docType,
+				refNo,
+				account,
+				,
+				debit,
+				,
+				credit,
+			] = cells;
 			if (!account) {
-				const [, accountName, desc] = cells[1].split("\n");
-				const [docNo] = cells[2].split("\n");
-				let [docDate, accountCode, sourceFund] = cells[4].split("\n");
-				const [docType] = cells[5].split("\n");
-				const [refNo] = cells[6].split("\n");
-				let [, debit] = cells[11].split("\n");
-				let [, credit] = cells[12].split("\n");
-				const [day, month, year] = docDate.split(".");
-				docDate = new Date(year - 543, month - 1, day);
-				debit = Number(debit.replace(/[^0-9.-]+/g, ""));
-				credit = Number(credit.replace(/[^0-9.-]+/g, ""));
 				const isReceiving = ["K0", "KA", "KC", "KL", "KZ"].includes(docType);
 				const isPaying = ["PM"].includes(docType);
 				const cort = refNo.slice(-3) + "/" + refNo.slice(1, 3);
@@ -97,7 +139,7 @@
 <div class="p-4 flex flex-wrap gap-4 print:hidden select-none">
 	<div class="">
 		<label>
-			NGL_RPT001 รายงานสมุดรายวันทั่วไป
+			NGL_RPT001 รายงานสมุดรายวันทั่วไป (รายเดือน)
 			<input
 				type="file"
 				class="cursor-pointer text-cyan-500"
@@ -105,7 +147,7 @@
 				onchange={(e) => {
 					upload(e, (aoa) => {
 						clear();
-						journal = aoa;
+						journal = restructJournal(aoa);
 					});
 				}}
 			/>
@@ -136,10 +178,10 @@
 	{/each}
 	<div class="">
 		<button
-			class="cursor-pointer bg-cyan-500 font-semibold text-white rounded px-1"
+			class="cursor-pointer bg-violet-500 font-semibold text-white rounded px-1"
 			onclick={() => {
 				print();
-			}}>+Print</button
+			}}>Print</button
 		>
 	</div>
 </div>
@@ -150,12 +192,17 @@
 
 <div class="p-4 print:p-0 text-sm">
 	{#if route == routes[0].value}
+		{@const firstDate = Object.keys(allowed.byDate)[0]}
 		<table class="overflow-auto w-full">
 			<thead class="text-center">
 				<tr>
-					<td class="" colspan="8"
-						>บัญชีธนาคาร เงินงบประมาณ ประจำเดือน {""} ปีงบประมาณ {""}</td
-					>
+					<td class="" colspan="8">
+						บัญชีธนาคาร เงินงบประมาณ ประจำเดือน {formatDate(
+							eoMonth(firstDate, 0),
+							{ day: undefined, month: "long" },
+						)} ปีงบประมาณ {eoMonth(firstDate, 3).getFullYear() + 543}
+					</td>
+					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
@@ -170,6 +217,7 @@
 					<td class="border">เดบิต</td>
 					<td class="border">เครดิต</td>
 					<td class="border">ยอดคงเหลือ</td>
+					<td class="print:hidden">วัน เดือน ปี</td>
 					<td class="print:hidden">รหัสบัญชี</td>
 					<td class="print:hidden">ชื่อบัญชี</td>
 					<td class="print:hidden">เลขที่เอกสาร GF</td>
@@ -200,9 +248,10 @@
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
 				</tr>
 				{#each Object.entries(allowed.byDate) as [date, arr]}
-					{@const formatedDate = formatDate(date)}
+					{@const formatedDate = formatDate(date, { year: undefined })}
 					{@const { debit, credit } = arr.reduce(
 						(prev, curr) => {
 							prev.debit += curr.debit;
@@ -214,12 +263,10 @@
 					{#each arr as obj, index}
 						<tr class="">
 							<td
-								class="border-x text-center text-nowrap border-black {index == 0
-									? ''
-									: 'text-white'}"
+								class="border-x text-center text-nowrap border-black"
 								style="border-bottom: 1px dotted var(--color-black);"
 							>
-								{formatedDate}
+								{index == 0 ? formatedDate : ""}
 							</td>
 							<td
 								class="border-x text-center"
@@ -254,6 +301,9 @@
 							</td>
 							<td class="border-x text-right" style="border-bottom: 1px dotted;"
 							></td>
+							<td class="print:hidden text-nowrap">
+								{formatDate(date, { calendar: "gregory" })}
+							</td>
 							<td class="print:hidden">{obj.accountCode}</td>
 							<td class="print:hidden">{obj.accountName}</td>
 							<td class="print:hidden">{obj.docNo}</td>
@@ -273,6 +323,7 @@
 						<td class="print:hidden"></td>
 						<td class="print:hidden"></td>
 						<td class="print:hidden"></td>
+						<td class="print:hidden"></td>
 					</tr>
 				{/each}
 				<tr class="">
@@ -288,6 +339,7 @@
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
+					<td class="print:hidden"></td>
 				</tr>
 				<tr class="">
 					<td class="border"></td>
@@ -298,6 +350,7 @@
 					<td class="border text-right">{formatMoney(0)}</td>
 					<td class="border text-right">{formatMoney(0)}</td>
 					<td class="border"></td>
+					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
