@@ -226,22 +226,22 @@
 			</thead>
 			<tbody>
 				<tr class="">
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;"
+					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-center" style="border-bottom: 1px dotted;">
+					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;">
 						ยอดยกมา
 					</td>
-					<td class="border-x text-right" style="border-bottom: 1px dotted;"
+					<td class="border-r border-l text-right" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-right" style="border-bottom: 1px dotted;"
+					<td class="border-r border-l text-right" style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-x text-right" style="border-bottom: 1px dotted;">
+					<td class="border-r border-l text-right" style="border-bottom: 1px dotted;">
 						{formatMoney(0)}
 					</td>
 					<td class="print:hidden"></td>
@@ -263,43 +263,43 @@
 					{#each arr as obj, index}
 						<tr class="">
 							<td
-								class="border-x text-center text-nowrap border-black"
-								style="border-bottom: 1px dotted var(--color-black);"
+								class="border-r border-l text-center text-nowrap"
+								style="border-bottom: 1px dotted;"
 							>
 								{index == 0 ? formatedDate : ""}
 							</td>
 							<td
-								class="border-x text-center"
+								class="border-r border-l text-center"
 								style="border-bottom: 1px dotted;"
 							>
 								{obj.cort}
 							</td>
 							<td
-								class="border-x text-center"
+								class="border-r border-l text-center"
 								style="border-bottom: 1px dotted;"
 							></td>
 							<td
-								class="border-x text-center"
+								class="border-r border-l text-center"
 								style="border-bottom: 1px dotted;"
 							>
 								{obj.budgetType}
 							</td>
-							<td class="border-x" style="border-bottom: 1px dotted;">
+							<td class="border-r border-l" style="border-bottom: 1px dotted;">
 								{obj.desc}
 							</td>
 							<td
-								class="border-x text-right"
+								class="border-r border-l text-right"
 								style="border-bottom: 1px dotted;"
 							>
 								{formatMoney(obj.debit)}
 							</td>
 							<td
-								class="border-x text-right"
+								class="border-r border-l text-right"
 								style="border-bottom: 1px dotted;"
 							>
 								{formatMoney(obj.credit)}
 							</td>
-							<td class="border-x text-right" style="border-bottom: 1px dotted;"
+							<td class="border-r border-l text-right" style="border-bottom: 1px dotted;"
 							></td>
 							<td class="print:hidden text-nowrap">
 								{formatDate(date, { calendar: "gregory" })}
@@ -316,7 +316,11 @@
 						<td class="border"></td>
 						<td class="border"></td>
 						<td class="border"></td>
-						<td class="border text-right">{formatMoney(debit)}</td>
+						<td class="border text-right">
+							<!-- <span class="sr-only">=sum()</span> -->
+							<span class="">{formatMoney(debit)}</span>
+							<!-- select-none -->
+						</td>
 						<td class="border text-right">{formatMoney(credit)}</td>
 						<td class="border"></td>
 						<td class="print:hidden"></td>
