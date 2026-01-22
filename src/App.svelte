@@ -209,14 +209,14 @@
 					<td class="print:hidden"></td>
 				</tr>
 				<tr>
-					<td class="border">วันที่</td>
-					<td class="border">เลขที่ฎีกา</td>
-					<td class="border">ประเภทจ่าย</td>
-					<td class="border">งบ</td>
-					<td class="border">รายการ</td>
-					<td class="border">เดบิต</td>
-					<td class="border">เครดิต</td>
-					<td class="border">ยอดคงเหลือ</td>
+					<td class="border-r border-l border-t border-b">วันที่</td>
+					<td class="border-r border-l border-t border-b">เลขที่ฎีกา</td>
+					<td class="border-r border-l border-t border-b">ประเภทจ่าย</td>
+					<td class="border-r border-l border-t border-b">งบ</td>
+					<td class="border-r border-l border-t border-b">รายการ</td>
+					<td class="border-r border-l border-t border-b">เดบิต</td>
+					<td class="border-r border-l border-t border-b">เครดิต</td>
+					<td class="border-r border-l border-t border-b">ยอดคงเหลือ</td>
 					<td class="print:hidden">วัน เดือน ปี</td>
 					<td class="print:hidden">รหัสบัญชี</td>
 					<td class="print:hidden">ชื่อบัญชี</td>
