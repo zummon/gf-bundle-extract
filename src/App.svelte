@@ -1,8 +1,10 @@
 <script>
-	const { read, utils } = globalThis.XLSX;
+	const { XLSX } = globalThis;
 	const routes = [
-		{ value: "เงินในงบฯ", callback() {} },
-		{ value: "อื่นๆ", callback() {} },
+		{ value: "รับจ่าย", callback() {
+
+		} },
+		{ value: "เก็บเอกสาร", callback() {} },
 	];
 	const budgetTypes = { 0: "กลาง", 1: "สรก.", 6: "เงินประกัน" };
 
@@ -31,15 +33,12 @@
 	function upload(e, callback) {
 		const file = e.currentTarget.files[0];
 		file.arrayBuffer().then((rawTrans) => {
-			const fileTrans = read(rawTrans, { cellDates: true });
+			const fileTrans = XLSX.read(rawTrans, { cellDates: true });
 			const sheetName = fileTrans.SheetNames[0];
 			const worksheet = fileTrans.Sheets[sheetName];
-			let aoa = utils.sheet_to_json(worksheet, { header: 1 });
+			let aoa = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 			callback(aoa);
 		});
-	}
-	function clear() {
-		journal = [];
 	}
 	function restructJournal(aoa) {
 		let journal = [];
@@ -78,8 +77,6 @@
 
 	let journal = $state([]);
 	let route = $state(routes[0].value);
-	let pickDocTypes = $state([]);
-	let docTypes = $state([]);
 
 	let allowed = $derived.by(() => {
 		let detail = {};
@@ -136,17 +133,16 @@
 	});
 </script>
 
-<div class="p-4 flex flex-wrap gap-4 print:hidden select-none">
+<div class="p-4 flex flex-wrap justify-center gap-4 print:hidden select-none">
 	<div class="">
-		<label>
+		<label class="cursor-pointer">
 			NGL_RPT001 รายงานสมุดรายวันทั่วไป (รายเดือน)
 			<input
 				type="file"
-				class="cursor-pointer text-cyan-500"
+				class="cursor-pointer text-cyan-600"
 				accept="xlsx"
 				onchange={(e) => {
 					upload(e, (aoa) => {
-						clear();
 						journal = restructJournal(aoa);
 					});
 				}}
@@ -154,31 +150,28 @@
 		</label>
 	</div>
 	<div class="">
+		เงินในงบฯ
 		<button
-			class="cursor-pointer {journal[0]
+			class="cursor-pointer font-semibold text-white rounded px-3 py-1 {journal[0]
 				? 'bg-orange-500'
-				: 'bg-zinc-500'} font-semibold text-white rounded px-1"
+				: 'hidden'}"
 			onclick={() => {
-				clear();
+				journal = []
 			}}>Clear</button
 		>
-	</div>
-	{#each routes as { value, callback }}
-		<div class="">
+		{#each routes as { value, callback }}
 			<button
-				class="cursor-pointer {route == value
-					? 'bg-zinc-500'
-					: 'bg-cyan-500'} font-semibold text-white rounded px-1"
+				class="cursor-pointer font-semibold rounded px-3 py-1 {route == value
+					? 'text-cyan-600'
+					: 'text-white bg-cyan-500'}"
 				onclick={() => {
 					route = value;
 					callback();
 				}}>{value}</button
 			>
-		</div>
-	{/each}
-	<div class="">
+		{/each}
 		<button
-			class="cursor-pointer bg-violet-500 font-semibold text-white rounded px-1"
+			class="cursor-pointer bg-violet-500 font-semibold text-white rounded px-3 py-1"
 			onclick={() => {
 				print();
 			}}>Print</button
@@ -226,22 +219,40 @@
 			</thead>
 			<tbody>
 				<tr class="">
-					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
+					<td
+						class="border-r border-l text-center"
+						style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
+					<td
+						class="border-r border-l text-center"
+						style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
+					<td
+						class="border-r border-l text-center"
+						style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;"
+					<td
+						class="border-r border-l text-center"
+						style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-r border-l text-center" style="border-bottom: 1px dotted;">
+					<td
+						class="border-r border-l text-center"
+						style="border-bottom: 1px dotted;"
+					>
 						ยอดยกมา
 					</td>
-					<td class="border-r border-l text-right" style="border-bottom: 1px dotted;"
+					<td
+						class="border-r border-l text-right"
+						style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-r border-l text-right" style="border-bottom: 1px dotted;"
+					<td
+						class="border-r border-l text-right"
+						style="border-bottom: 1px dotted;"
 					></td>
-					<td class="border-r border-l text-right" style="border-bottom: 1px dotted;">
+					<td
+						class="border-r border-l text-right"
+						style="border-bottom: 1px dotted;"
+					>
 						{formatMoney(0)}
 					</td>
 					<td class="print:hidden"></td>
@@ -299,7 +310,9 @@
 							>
 								{formatMoney(obj.credit)}
 							</td>
-							<td class="border-r border-l text-right" style="border-bottom: 1px dotted;"
+							<td
+								class="border-r border-l text-right"
+								style="border-bottom: 1px dotted;"
 							></td>
 							<td class="print:hidden text-nowrap">
 								{formatDate(date, { calendar: "gregory" })}
@@ -311,18 +324,18 @@
 						</tr>
 					{/each}
 					<tr class="">
-						<td class="border">{formatedDate}</td>
-						<td class="border"></td>
-						<td class="border"></td>
-						<td class="border"></td>
-						<td class="border"></td>
-						<td class="border text-right">
+						<td class="border-r border-l border-t border-b"></td>
+						<td class="border-r border-l border-t border-b"></td>
+						<td class="border-r border-l border-t border-b"></td>
+						<td class="border-r border-l border-t border-b"></td>
+						<td class="border-r border-l border-t border-b text-center">รวมวันที่ {formatedDate}</td>
+						<td class="border-r border-l border-t border-b text-right">
 							<!-- <span class="sr-only">=sum()</span> -->
 							<span class="">{formatMoney(debit)}</span>
 							<!-- select-none -->
 						</td>
-						<td class="border text-right">{formatMoney(credit)}</td>
-						<td class="border"></td>
+						<td class="border-r border-l border-t border-b text-right">{formatMoney(credit)}</td>
+						<td class="border-r border-l border-t border-b"></td>
 						<td class="print:hidden"></td>
 						<td class="print:hidden"></td>
 						<td class="print:hidden"></td>
@@ -331,14 +344,14 @@
 					</tr>
 				{/each}
 				<tr class="">
-					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border text-center">รวมทั้งเดือน</td>
-					<td class="border text-right">{formatMoney(0)}</td>
-					<td class="border text-right">{formatMoney(0)}</td>
-					<td class="border"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b text-center">รวมทั้งเดือน</td>
+					<td class="border-r border-l border-t border-b text-right">{formatMoney(0)}</td>
+					<td class="border-r border-l border-t border-b text-right">{formatMoney(0)}</td>
+					<td class="border-r border-l border-t border-b"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
@@ -346,14 +359,14 @@
 					<td class="print:hidden"></td>
 				</tr>
 				<tr class="">
-					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border"></td>
-					<td class="border text-center">รวมตั้งแต่ต้นปี</td>
-					<td class="border text-right">{formatMoney(0)}</td>
-					<td class="border text-right">{formatMoney(0)}</td>
-					<td class="border"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b"></td>
+					<td class="border-r border-l border-t border-b text-center">รวมตั้งแต่ต้นปี</td>
+					<td class="border-r border-l border-t border-b text-right">{formatMoney(0)}</td>
+					<td class="border-r border-l border-t border-b text-right">{formatMoney(0)}</td>
+					<td class="border-r border-l border-t border-b"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
 					<td class="print:hidden"></td>
